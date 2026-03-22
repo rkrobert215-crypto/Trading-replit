@@ -14,3 +14,134 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary List all trades
+ */
+export const ListTradesResponseItem = zod.object({
+  id: zod.string(),
+  created_at: zod.string().optional(),
+  updated_at: zod.string().optional(),
+  trade_date: zod.string(),
+  symbol: zod.string(),
+  trade_type: zod.string(),
+  instrument: zod.string(),
+  entry_price: zod.number(),
+  exit_price: zod.number().nullish(),
+  quantity: zod.number(),
+  option_type: zod.string().nullish(),
+  strike_price: zod.number().nullish(),
+  expiry_date: zod.string().nullish(),
+  gross_pnl: zod.number().nullish(),
+  charges: zod.number().nullish(),
+  net_pnl: zod.number().nullish(),
+  stop_loss: zod.number().nullish(),
+  target: zod.number().nullish(),
+  risk_amount: zod.number().nullish(),
+  risk_reward_ratio: zod.number().nullish(),
+  position_size_percent: zod.number().nullish(),
+  capital_at_entry: zod.number().nullish(),
+  strategy: zod.string().nullish(),
+  setup_type: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  status: zod.string(),
+});
+export const ListTradesResponse = zod.array(ListTradesResponseItem);
+
+/**
+ * @summary Create a new trade
+ */
+export const CreateTradeBody = zod.object({
+  trade_date: zod.string(),
+  symbol: zod.string(),
+  trade_type: zod.string(),
+  instrument: zod.string(),
+  entry_price: zod.number(),
+  exit_price: zod.number().nullish(),
+  quantity: zod.number(),
+  option_type: zod.string().nullish(),
+  strike_price: zod.number().nullish(),
+  expiry_date: zod.string().nullish(),
+  gross_pnl: zod.number().nullish(),
+  charges: zod.number().nullish(),
+  net_pnl: zod.number().nullish(),
+  stop_loss: zod.number().nullish(),
+  target: zod.number().nullish(),
+  risk_amount: zod.number().nullish(),
+  risk_reward_ratio: zod.number().nullish(),
+  position_size_percent: zod.number().nullish(),
+  capital_at_entry: zod.number().nullish(),
+  strategy: zod.string().nullish(),
+  setup_type: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  status: zod.string(),
+});
+
+/**
+ * @summary Update a trade
+ */
+export const UpdateTradeParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdateTradeBody = zod.object({
+  trade_date: zod.string().optional(),
+  symbol: zod.string().optional(),
+  trade_type: zod.string().optional(),
+  instrument: zod.string().optional(),
+  entry_price: zod.number().optional(),
+  exit_price: zod.number().nullish(),
+  quantity: zod.number().optional(),
+  option_type: zod.string().nullish(),
+  strike_price: zod.number().nullish(),
+  expiry_date: zod.string().nullish(),
+  gross_pnl: zod.number().nullish(),
+  charges: zod.number().nullish(),
+  net_pnl: zod.number().nullish(),
+  stop_loss: zod.number().nullish(),
+  target: zod.number().nullish(),
+  risk_amount: zod.number().nullish(),
+  risk_reward_ratio: zod.number().nullish(),
+  position_size_percent: zod.number().nullish(),
+  capital_at_entry: zod.number().nullish(),
+  strategy: zod.string().nullish(),
+  setup_type: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  status: zod.string().optional(),
+});
+
+export const UpdateTradeResponse = zod.object({
+  id: zod.string(),
+  created_at: zod.string().optional(),
+  updated_at: zod.string().optional(),
+  trade_date: zod.string(),
+  symbol: zod.string(),
+  trade_type: zod.string(),
+  instrument: zod.string(),
+  entry_price: zod.number(),
+  exit_price: zod.number().nullish(),
+  quantity: zod.number(),
+  option_type: zod.string().nullish(),
+  strike_price: zod.number().nullish(),
+  expiry_date: zod.string().nullish(),
+  gross_pnl: zod.number().nullish(),
+  charges: zod.number().nullish(),
+  net_pnl: zod.number().nullish(),
+  stop_loss: zod.number().nullish(),
+  target: zod.number().nullish(),
+  risk_amount: zod.number().nullish(),
+  risk_reward_ratio: zod.number().nullish(),
+  position_size_percent: zod.number().nullish(),
+  capital_at_entry: zod.number().nullish(),
+  strategy: zod.string().nullish(),
+  setup_type: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  status: zod.string(),
+});
+
+/**
+ * @summary Delete a trade
+ */
+export const DeleteTradeParams = zod.object({
+  id: zod.coerce.string(),
+});

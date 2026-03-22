@@ -91,6 +91,26 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+### `artifacts/risk-calculator` (`@workspace/risk-calculator`)
+
+Trading Risk Calculator web app (React + Vite + Tailwind). A comprehensive Indian market trading toolkit.
+
+**Features:**
+- **Equity Calculator** — position sizing with leverage, risk %, stop loss/target, Indian charges (STT, SEBI, GST, stamp duty)
+- **Options Calculator** — stock & index options, Black-Scholes Greeks (Delta, Gamma, Theta, Vega), lot-based sizing
+- **Futures Calculator** — margin-based sizing for NSE F&O with margin utilization gauge
+- **Trading Journal** — full CRUD (Add/Edit/Delete/Close trade) backed by `/api/trades` REST API + CSV export
+- **Performance Dashboard** — Recharts analytics: cumulative P&L, daily P&L bar chart, weekly win rate trend, instrument pie chart
+- **5 color themes** — rose (default), cyan, emerald, violet, amber; applied via `data-theme` on `<html>`
+- **Help Guide** — inline glossary for all calculator fields and Indian market charges
+
+**Key files:**
+- `src/App.tsx` — wouter routing (/, /equity, /options, /futures, /journal, /dashboard)
+- `src/index.css` — all 5 themes as `[data-theme]` CSS custom properties
+- `src/lib/charges.ts` — Indian market charge calculations
+- `src/lib/optionsCalculator.ts` — Black-Scholes Greeks
+- `src/components/RiskCalculator.tsx` — main shell with tab nav
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.

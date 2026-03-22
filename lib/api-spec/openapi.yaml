@@ -1,6 +1,5 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
   description: API specification
@@ -10,6 +9,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: trades
+    description: Trade journal operations
 paths:
   /healthz:
     get:
@@ -24,6 +25,74 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /trades:
+    get:
+      operationId: listTrades
+      tags: [trades]
+      summary: List all trades
+      responses:
+        "200":
+          description: List of trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+    post:
+      operationId: createTrade
+      tags: [trades]
+      summary: Create a new trade
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrade"
+      responses:
+        "201":
+          description: Trade created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+  /trades/{id}:
+    patch:
+      operationId: updateTrade
+      tags: [trades]
+      summary: Update a trade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTrade"
+      responses:
+        "200":
+          description: Trade updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Trade"
+    delete:
+      operationId: deleteTrade
+      tags: [trades]
+      summary: Delete a trade
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Trade deleted
 components:
   schemas:
     HealthStatus:
@@ -33,4 +102,221 @@ components:
           type: string
       required:
         - status
-
+    Trade:
+      type: object
+      properties:
+        id:
+          type: string
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        trade_date:
+          type: string
+        symbol:
+          type: string
+        trade_type:
+          type: string
+        instrument:
+          type: string
+        entry_price:
+          type: number
+        exit_price:
+          type: number
+          nullable: true
+        quantity:
+          type: integer
+        option_type:
+          type: string
+          nullable: true
+        strike_price:
+          type: number
+          nullable: true
+        expiry_date:
+          type: string
+          nullable: true
+        gross_pnl:
+          type: number
+          nullable: true
+        charges:
+          type: number
+          nullable: true
+        net_pnl:
+          type: number
+          nullable: true
+        stop_loss:
+          type: number
+          nullable: true
+        target:
+          type: number
+          nullable: true
+        risk_amount:
+          type: number
+          nullable: true
+        risk_reward_ratio:
+          type: number
+          nullable: true
+        position_size_percent:
+          type: number
+          nullable: true
+        capital_at_entry:
+          type: number
+          nullable: true
+        strategy:
+          type: string
+          nullable: true
+        setup_type:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required:
+        - id
+        - trade_date
+        - symbol
+        - trade_type
+        - instrument
+        - entry_price
+        - quantity
+        - status
+    CreateTrade:
+      type: object
+      properties:
+        trade_date:
+          type: string
+        symbol:
+          type: string
+        trade_type:
+          type: string
+        instrument:
+          type: string
+        entry_price:
+          type: number
+        exit_price:
+          type: number
+          nullable: true
+        quantity:
+          type: integer
+        option_type:
+          type: string
+          nullable: true
+        strike_price:
+          type: number
+          nullable: true
+        expiry_date:
+          type: string
+          nullable: true
+        gross_pnl:
+          type: number
+          nullable: true
+        charges:
+          type: number
+          nullable: true
+        net_pnl:
+          type: number
+          nullable: true
+        stop_loss:
+          type: number
+          nullable: true
+        target:
+          type: number
+          nullable: true
+        risk_amount:
+          type: number
+          nullable: true
+        risk_reward_ratio:
+          type: number
+          nullable: true
+        position_size_percent:
+          type: number
+          nullable: true
+        capital_at_entry:
+          type: number
+          nullable: true
+        strategy:
+          type: string
+          nullable: true
+        setup_type:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+      required:
+        - trade_date
+        - symbol
+        - trade_type
+        - instrument
+        - entry_price
+        - quantity
+        - status
+    UpdateTrade:
+      type: object
+      properties:
+        trade_date:
+          type: string
+        symbol:
+          type: string
+        trade_type:
+          type: string
+        instrument:
+          type: string
+        entry_price:
+          type: number
+        exit_price:
+          type: number
+          nullable: true
+        quantity:
+          type: integer
+        option_type:
+          type: string
+          nullable: true
+        strike_price:
+          type: number
+          nullable: true
+        expiry_date:
+          type: string
+          nullable: true
+        gross_pnl:
+          type: number
+          nullable: true
+        charges:
+          type: number
+          nullable: true
+        net_pnl:
+          type: number
+          nullable: true
+        stop_loss:
+          type: number
+          nullable: true
+        target:
+          type: number
+          nullable: true
+        risk_amount:
+          type: number
+          nullable: true
+        risk_reward_ratio:
+          type: number
+          nullable: true
+        position_size_percent:
+          type: number
+          nullable: true
+        capital_at_entry:
+          type: number
+          nullable: true
+        strategy:
+          type: string
+          nullable: true
+        setup_type:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
