@@ -63,7 +63,7 @@ export default function AuthPage() {
         theme: "outline",
         size: "large",
         shape: "rectangular",
-        width: 360,
+        width: 400,
         text: "signin_with",
       });
     };
@@ -195,7 +195,7 @@ export default function AuthPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90"
+              className="w-full bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90 border-0"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {mode === "login" ? "Sign In" : "Create Account"}
