@@ -63,7 +63,7 @@ export default function AuthPage() {
         theme: "outline",
         size: "large",
         shape: "rectangular",
-        width: "100%",
+        width: 360,
         text: "signin_with",
       });
     };
