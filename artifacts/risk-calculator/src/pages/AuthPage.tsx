@@ -1,11 +1,27 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { login, register } from "@/lib/auth";
+import { login, register, googleAuth } from "@/lib/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BarChart3, Mail, Lock, User, ArrowLeft, Loader2 } from "lucide-react";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: { client_id: string; callback: (resp: { credential: string }) => void; auto_select?: boolean }) => void;
+          renderButton: (element: HTMLElement, opts: object) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -14,14 +30,59 @@ export default function AuthPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [, navigate] = useLocation();
   const { refreshUser } = useAuth();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  const handleGoogleCredential = async (credential: string) => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      await googleAuth(credential);
+      await refreshUser();
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message || "Google sign-in failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const initGoogle = () => {
+      if (!window.google || !googleBtnRef.current) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (resp) => handleGoogleCredential(resp.credential),
+        auto_select: false,
+      });
+      window.google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline",
+        size: "large",
+        shape: "rectangular",
+        width: "100%",
+        text: "signin_with",
+      });
+    };
+
+    if (window.google) {
+      initGoogle();
+    } else {
+      const script = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+      if (script) {
+        script.addEventListener("load", initGoogle);
+        return () => script.removeEventListener("load", initGoogle);
+      }
+    }
+  }, [GOOGLE_CLIENT_ID]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     try {
       if (mode === "register") {
         await register(email, password, name);
@@ -50,7 +111,29 @@ export default function AuthPage() {
           </p>
         </div>
 
-        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 shadow-lg">
+        <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-6 shadow-lg space-y-5">
+
+          {/* Google Sign-In */}
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div className="w-full flex justify-center">
+                {googleLoading ? (
+                  <div className="flex items-center gap-2 text-[var(--muted-foreground)] text-sm py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Signing in with Google...
+                  </div>
+                ) : (
+                  <div ref={googleBtnRef} className="w-full" />
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-[var(--border)]" />
+                <span className="text-xs text-[var(--muted-foreground)]">or continue with email</span>
+                <div className="flex-1 h-px bg-[var(--border)]" />
+              </div>
+            </>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === "register" && (
               <div className="space-y-2">
@@ -114,14 +197,12 @@ export default function AuthPage() {
               disabled={loading}
               className="w-full bg-[var(--primary)] text-[var(--primary-foreground)] hover:opacity-90"
             >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               {mode === "login" ? "Sign In" : "Create Account"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="text-center">
             <p className="text-sm text-[var(--muted-foreground)]">
               {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
               <button

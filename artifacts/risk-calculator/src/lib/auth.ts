@@ -53,11 +53,11 @@ export async function login(email: string, password: string): Promise<AuthRespon
   return data;
 }
 
-export async function googleAuth(googleData: { google_id: string; email: string; name: string; avatar_url?: string }): Promise<AuthResponse> {
+export async function googleAuth(credential: string): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(googleData),
+    body: JSON.stringify({ credential }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Google auth failed");
