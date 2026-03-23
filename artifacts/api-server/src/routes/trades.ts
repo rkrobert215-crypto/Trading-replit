@@ -3,8 +3,28 @@ import { db, tradesTable } from "@workspace/db";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { optionalAuth } from "../lib/jwt";
 import { notifyNewTrade, notifyTradeClosed, notifyTradeUpdated } from "../lib/telegram";
+import { isOwnerTrade, getOwnerUserId } from "../lib/ownerCache";
+import { syncTradesToSheet } from "../lib/googleSheets";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
+
+// Fetch all trades for a given userId (or anonymous) and sync to Google Sheets
+async function autoSyncSheets(userId: string | null) {
+  try {
+    let rows;
+    if (userId) {
+      rows = await db.select().from(tradesTable).where(eq(tradesTable.user_id, userId)).orderBy(desc(tradesTable.trade_date));
+    } else {
+      rows = await db.select().from(tradesTable).where(isNull(tradesTable.user_id)).orderBy(desc(tradesTable.trade_date));
+    }
+    const trades = rows.map(coerce) as any[];
+    await syncTradesToSheet(trades);
+    logger.info("Auto Google Sheets sync completed");
+  } catch (err) {
+    logger.warn({ err }, "Auto Google Sheets sync failed (non-fatal)");
+  }
+}
 
 router.get("/trades", optionalAuth, async (req, res) => {
   try {
@@ -57,7 +77,17 @@ router.post("/trades", optionalAuth, async (req, res) => {
       .returning();
 
     const coerced = coerce(trade);
-    notifyNewTrade(coerced);
+
+    // Telegram: only notify for owner's trades
+    if (isOwnerTrade(userId)) {
+      notifyNewTrade(coerced);
+    }
+
+    // Google Sheets: auto-sync owner's trades after any change
+    if (isOwnerTrade(userId)) {
+      autoSyncSheets(userId);
+    }
+
     res.status(201).json(coerced);
   } catch (err) {
     res.status(500).json({ error: "Failed to create trade" });
@@ -68,7 +98,7 @@ router.patch("/trades/:id", optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.userId ?? null;
 
     const ownershipCondition = userId
       ? and(eq(tradesTable.id, id), eq(tradesTable.user_id, userId))
@@ -112,11 +142,21 @@ router.patch("/trades/:id", optionalAuth, async (req, res) => {
     }
 
     const coerced = coerce(trade);
-    if (body.status === "CLOSED") {
-      notifyTradeClosed(coerced);
-    } else {
-      notifyTradeUpdated(coerced);
+
+    // Telegram: only notify for owner's trades
+    if (isOwnerTrade(userId)) {
+      if (body.status === "CLOSED") {
+        notifyTradeClosed(coerced);
+      } else {
+        notifyTradeUpdated(coerced);
+      }
     }
+
+    // Google Sheets: auto-sync owner's trades after any change
+    if (isOwnerTrade(userId)) {
+      autoSyncSheets(userId);
+    }
+
     res.json(coerced);
   } catch (err) {
     res.status(500).json({ error: "Failed to update trade" });
@@ -126,7 +166,7 @@ router.patch("/trades/:id", optionalAuth, async (req, res) => {
 router.delete("/trades/:id", optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user?.userId;
+    const userId = (req as any).user?.userId ?? null;
 
     const ownershipCondition = userId
       ? and(eq(tradesTable.id, id), eq(tradesTable.user_id, userId))
@@ -140,6 +180,12 @@ router.delete("/trades/:id", optionalAuth, async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: "Trade not found" });
     }
+
+    // Google Sheets: auto-sync after deletion too
+    if (isOwnerTrade(userId)) {
+      autoSyncSheets(userId);
+    }
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: "Failed to delete trade" });

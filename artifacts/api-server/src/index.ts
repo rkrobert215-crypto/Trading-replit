@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { db, tradesTable, usersTable } from "@workspace/db";
 import { eq, isNull } from "drizzle-orm";
 import { sendDailySummary, sendWeeklySummary, sendMonthlySummary } from "./lib/telegram";
+import { setOwnerUserId } from "./lib/ownerCache";
 
 const rawPort = process.env["PORT"];
 
@@ -124,13 +125,35 @@ function scheduleMonthlySummary() {
   setTimeout(tryAndReschedule, CHECK_INTERVAL_MS);
 }
 
-app.listen(port, (err) => {
+async function initOwner() {
+  if (!OWNER_EMAIL) {
+    setOwnerUserId(null);
+    logger.info("No TELEGRAM_OWNER_EMAIL — Telegram notifications for anonymous trades only");
+    return;
+  }
+
+  const [owner] = await db.select().from(usersTable).where(eq(usersTable.email, OWNER_EMAIL));
+  if (owner) {
+    setOwnerUserId(owner.id);
+    logger.info({ email: OWNER_EMAIL }, "Owner resolved — Telegram scoped to owner trades");
+  } else {
+    setOwnerUserId(null);
+    logger.warn({ email: OWNER_EMAIL }, "Owner not registered yet — will retry in 5 minutes");
+    // Retry every 5 minutes until the owner registers
+    setTimeout(async () => {
+      await initOwner();
+    }, 5 * 60 * 1000);
+  }
+}
+
+app.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
 
   logger.info({ port, ownerEmail: OWNER_EMAIL || "(anonymous mode)" }, "Server listening");
+  await initOwner();
   scheduleDailySummary();
   scheduleWeeklySummary();
   scheduleMonthlySummary();
