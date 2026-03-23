@@ -65,6 +65,7 @@ export default function AuthPage() {
         shape: "rectangular",
         width: 400,
         text: "signin_with",
+        logo_alignment: "center",
       });
     };
 
