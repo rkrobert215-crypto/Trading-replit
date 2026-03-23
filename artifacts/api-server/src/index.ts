@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db, tradesTable } from "@workspace/db";
-import { isNull } from "drizzle-orm";
+import { db, tradesTable, usersTable } from "@workspace/db";
+import { eq, isNull } from "drizzle-orm";
 import { sendDailySummary, sendWeeklySummary, sendMonthlySummary } from "./lib/telegram";
 
 const rawPort = process.env["PORT"];
@@ -18,6 +18,7 @@ if (Number.isNaN(port) || port <= 0) {
 
 const SUMMARY_HOUR_UTC = 13; // 6:30 PM IST = 13:00 UTC
 const SUMMARY_MINUTE_UTC = 0;
+const OWNER_EMAIL = process.env.TELEGRAM_OWNER_EMAIL?.toLowerCase().trim();
 
 function coerceTrades(rows: any[]): Record<string, unknown>[] {
   const numericFields = ["entry_price", "exit_price", "quantity", "gross_pnl", "charges", "net_pnl"];
@@ -30,7 +31,17 @@ function coerceTrades(rows: any[]): Record<string, unknown>[] {
   });
 }
 
-async function getAllTrades() {
+async function getOwnerTrades() {
+  if (OWNER_EMAIL) {
+    const [owner] = await db.select().from(usersTable).where(eq(usersTable.email, OWNER_EMAIL));
+    if (owner) {
+      logger.info({ email: OWNER_EMAIL }, "Fetching owner trades for scheduled summary");
+      const rows = await db.select().from(tradesTable).where(eq(tradesTable.user_id, owner.id));
+      return coerceTrades(rows);
+    }
+    logger.warn({ email: OWNER_EMAIL }, "Owner email set but no matching user found yet — falling back to anonymous trades");
+  }
+  // Fallback: anonymous trades (no account)
   const rows = await db.select().from(tradesTable).where(isNull(tradesTable.user_id));
   return coerceTrades(rows);
 }
@@ -56,7 +67,7 @@ function scheduleDailySummary() {
 
   setTimeout(async () => {
     try {
-      const trades = await getAllTrades();
+      const trades = await getOwnerTrades();
       await sendDailySummary(trades);
       logger.info("Daily Telegram summary sent");
     } catch (err) {
@@ -68,7 +79,7 @@ function scheduleDailySummary() {
 
 function scheduleWeeklySummary() {
   const now = new Date();
-  const dayOfWeek = now.getUTCDay(); // 0=Sun, 5=Fri
+  const dayOfWeek = now.getUTCDay();
   const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7;
 
   const next = new Date();
@@ -80,7 +91,7 @@ function scheduleWeeklySummary() {
 
   setTimeout(async () => {
     try {
-      const trades = await getAllTrades();
+      const trades = await getOwnerTrades();
       await sendWeeklySummary(trades);
       logger.info("Weekly Telegram summary sent");
     } catch (err) {
@@ -91,17 +102,15 @@ function scheduleWeeklySummary() {
 }
 
 function scheduleMonthlySummary() {
-  // Check once per hour if today is the last day of the month
   const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
   const tryAndReschedule = async () => {
     const now = new Date();
     if (isLastDayOfMonth() && now.getUTCHours() === SUMMARY_HOUR_UTC && now.getUTCMinutes() < 30) {
       try {
-        const trades = await getAllTrades();
+        const trades = await getOwnerTrades();
         await sendMonthlySummary(trades);
         logger.info("Monthly Telegram summary sent");
-        // Wait until next day before rescheduling to avoid double-send
         setTimeout(tryAndReschedule, 24 * CHECK_INTERVAL_MS);
         return;
       } catch (err) {
@@ -121,7 +130,7 @@ app.listen(port, (err) => {
     process.exit(1);
   }
 
-  logger.info({ port }, "Server listening");
+  logger.info({ port, ownerEmail: OWNER_EMAIL || "(anonymous mode)" }, "Server listening");
   scheduleDailySummary();
   scheduleWeeklySummary();
   scheduleMonthlySummary();
