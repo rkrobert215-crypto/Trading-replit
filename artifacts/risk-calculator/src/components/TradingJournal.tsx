@@ -276,21 +276,32 @@ export const TradingJournal = () => {
     }
   };
 
-  const [sendingSummary, setSendingSummary] = useState(false);
-  const sendTelegramSummary = async () => {
-    setSendingSummary(true);
+  const [sendingSummary, setSendingSummary] = useState<'daily' | 'weekly' | 'monthly' | null>(null);
+
+  const sendTelegramSummary = async (type: 'daily' | 'weekly' | 'monthly') => {
+    setSendingSummary(type);
+    const endpointMap = {
+      daily: '/telegram/summary',
+      weekly: '/telegram/weekly-summary',
+      monthly: '/telegram/monthly-summary',
+    };
+    const labelMap = {
+      daily: 'Daily',
+      weekly: 'Weekly',
+      monthly: 'Monthly',
+    };
     try {
-      const res = await fetch(apiUrl('/telegram/summary'), {
+      const res = await fetch(apiUrl(endpointMap[type]), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || data.error || 'Failed to send summary');
-      toast({ title: "Summary Sent!", description: "Daily summary sent to your Telegram" });
+      toast({ title: "Summary Sent!", description: `${labelMap[type]} summary sent to your Telegram` });
     } catch (err: any) {
       toast({ title: "Telegram Failed", description: err.message, variant: "destructive" });
     } finally {
-      setSendingSummary(false);
+      setSendingSummary(null);
     }
   };
 
@@ -398,9 +409,17 @@ export const TradingJournal = () => {
               {syncing ? <Loader2 size={16} className="animate-spin" /> : <Sheet size={16} />}
               {syncing ? "Syncing..." : "Sync to Google Sheets"}
             </Button>
-            <Button variant="outline" onClick={sendTelegramSummary} disabled={sendingSummary} className="gap-2">
-              {sendingSummary ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              {sendingSummary ? "Sending..." : "Send Summary to Telegram"}
+            <Button variant="outline" onClick={() => sendTelegramSummary('daily')} disabled={sendingSummary !== null} className="gap-2">
+              {sendingSummary === 'daily' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sendingSummary === 'daily' ? "Sending..." : "Daily → Telegram"}
+            </Button>
+            <Button variant="outline" onClick={() => sendTelegramSummary('weekly')} disabled={sendingSummary !== null} className="gap-2">
+              {sendingSummary === 'weekly' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sendingSummary === 'weekly' ? "Sending..." : "Weekly → Telegram"}
+            </Button>
+            <Button variant="outline" onClick={() => sendTelegramSummary('monthly')} disabled={sendingSummary !== null} className="gap-2">
+              {sendingSummary === 'monthly' ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sendingSummary === 'monthly' ? "Sending..." : "Monthly → Telegram"}
             </Button>
           </div>
         </CardContent>
