@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Download, TrendingUp, TrendingDown, Edit2, Trash2, X, Check, Calendar, CalendarDays, Loader2, Sheet } from "lucide-react";
+import { Plus, Download, TrendingUp, TrendingDown, Edit2, Trash2, X, Check, Calendar, CalendarDays, Loader2, Sheet, Send } from "lucide-react";
 import type { Trade } from "@/types/trade";
 import { getAuthHeaders } from "@/lib/auth";
 
@@ -276,6 +276,24 @@ export const TradingJournal = () => {
     }
   };
 
+  const [sendingSummary, setSendingSummary] = useState(false);
+  const sendTelegramSummary = async () => {
+    setSendingSummary(true);
+    try {
+      const res = await fetch(apiUrl('/telegram/summary'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Failed to send summary');
+      toast({ title: "Summary Sent!", description: "Daily summary sent to your Telegram" });
+    } catch (err: any) {
+      toast({ title: "Telegram Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSendingSummary(false);
+    }
+  };
+
   const exportToCSV = () => {
     const headers = [
       'Date', 'Symbol', 'Type', 'Instrument', 'Option Type', 'Strike', 'Entry', 'Exit',
@@ -379,6 +397,10 @@ export const TradingJournal = () => {
             <Button variant="outline" onClick={syncToGoogleSheets} disabled={syncing} className="gap-2">
               {syncing ? <Loader2 size={16} className="animate-spin" /> : <Sheet size={16} />}
               {syncing ? "Syncing..." : "Sync to Google Sheets"}
+            </Button>
+            <Button variant="outline" onClick={sendTelegramSummary} disabled={sendingSummary} className="gap-2">
+              {sendingSummary ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sendingSummary ? "Sending..." : "Send Summary to Telegram"}
             </Button>
           </div>
         </CardContent>

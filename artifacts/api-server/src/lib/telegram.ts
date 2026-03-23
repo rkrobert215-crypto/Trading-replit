@@ -71,3 +71,62 @@ export function notifyTradeUpdated(trade: Record<string, unknown>) {
     `<b>Type:</b> ${trade.trade_type} (${trade.instrument})`;
   sendMessage(msg);
 }
+
+export async function sendDailySummary(trades: Record<string, unknown>[]) {
+  const today = new Date().toISOString().split("T")[0];
+
+  const todayTrades = trades.filter((t) => {
+    const d = String(t.trade_date ?? "").slice(0, 10);
+    return d === today;
+  });
+
+  const allClosed = trades.filter((t) => t.status === "CLOSED");
+  const totalPnl = allClosed.reduce(
+    (sum, t) => sum + (Number(t.net_pnl) || 0),
+    0
+  );
+  const wins = allClosed.filter((t) => Number(t.net_pnl) > 0).length;
+  const losses = allClosed.filter((t) => Number(t.net_pnl) <= 0).length;
+  const winRate =
+    allClosed.length > 0
+      ? ((wins / allClosed.length) * 100).toFixed(1)
+      : "0.0";
+
+  const todayPnl = todayTrades
+    .filter((t) => t.status === "CLOSED")
+    .reduce((sum, t) => sum + (Number(t.net_pnl) || 0), 0);
+
+  const todayEmoji = todayPnl >= 0 ? "🟢" : "🔴";
+  const totalEmoji = totalPnl >= 0 ? "✅" : "❌";
+
+  let msg =
+    `📊 <b>Daily Trading Summary</b>\n` +
+    `📅 ${new Date().toLocaleDateString("en-IN", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}\n\n`;
+
+  if (todayTrades.length === 0) {
+    msg += `No trades logged today.\n\n`;
+  } else {
+    msg +=
+      `<b>Today's Activity:</b>\n` +
+      `• Trades: ${todayTrades.length}\n` +
+      `• ${todayEmoji} P&L: ₹${todayPnl.toLocaleString("en-IN")}\n\n`;
+
+    const openToday = todayTrades.filter((t) => t.status === "OPEN");
+    if (openToday.length > 0) {
+      msg += `<b>Open Positions (${openToday.length}):</b>\n`;
+      for (const t of openToday.slice(0, 5)) {
+        msg += `• ${t.symbol} ${t.trade_type} @ ₹${Number(t.entry_price).toLocaleString("en-IN")}\n`;
+      }
+      if (openToday.length > 5) msg += `  ...and ${openToday.length - 5} more\n`;
+      msg += "\n";
+    }
+  }
+
+  msg +=
+    `<b>Overall Performance:</b>\n` +
+    `• Total Trades: ${allClosed.length}\n` +
+    `• Win Rate: ${winRate}% (${wins}W / ${losses}L)\n` +
+    `• ${totalEmoji} Net P&L: ₹${totalPnl.toLocaleString("en-IN")}`;
+
+  return sendMessage(msg);
+}

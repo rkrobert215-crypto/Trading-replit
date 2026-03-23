@@ -15,44 +15,6 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "API Server"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=20553 BASE_PATH=/ pnpm --filter @workspace/risk-calculator run dev"
-waitForPort = 20553
-
-[[workflows.workflow]]
-name = "API Server"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=8080 pnpm --filter @workspace/api-server run dev"
-waitForPort = 8080
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -67,6 +29,8 @@ timeoutMs = 20000
 
 [userenv.shared]
 JWT_SECRET = "55bfa084ec84811fb6e73156663f8dafbf7a6f60cea5bb0ce4d74a8dab7c7421"
+TELEGRAM_BOT_TOKEN = "8489930334:AAFpZpASPCcR6mEQhar72-9Nb3pYJwOqXE"
+TELEGRAM_CHAT_ID = "5330125827"
 
 [nix]
 channel = "stable-25_05"
