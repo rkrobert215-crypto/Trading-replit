@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Download, TrendingUp, TrendingDown, Edit2, Trash2, X, Check, Calendar, CalendarDays, Loader2 } from "lucide-react";
+import { Plus, Download, TrendingUp, TrendingDown, Edit2, Trash2, X, Check, Calendar, CalendarDays, Loader2, Sheet } from "lucide-react";
 import type { Trade } from "@/types/trade";
+import { getAuthHeaders } from "@/lib/auth";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 
@@ -85,7 +86,7 @@ export const TradingJournal = () => {
   const fetchTrades = async () => {
     setFetching(true);
     try {
-      const res = await fetch(apiUrl('/trades'));
+      const res = await fetch(apiUrl('/trades'), { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
       setTrades(data || []);
@@ -147,7 +148,7 @@ export const TradingJournal = () => {
       if (editingId) {
         const res = await fetch(apiUrl(`/trades/${editingId}`), {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(calculatedData),
         });
         if (!res.ok) throw new Error('Failed to update');
@@ -155,7 +156,7 @@ export const TradingJournal = () => {
       } else {
         const res = await fetch(apiUrl('/trades'), {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(calculatedData),
         });
         if (!res.ok) throw new Error('Failed to create');
@@ -204,7 +205,7 @@ export const TradingJournal = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const res = await fetch(apiUrl(`/trades/${id}`), { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/trades/${id}`), { method: 'DELETE', headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to delete');
       toast({ title: "Deleted", description: "Trade removed" });
       fetchTrades();
@@ -240,7 +241,7 @@ export const TradingJournal = () => {
     try {
       const res = await fetch(apiUrl(`/trades/${trade.id}`), {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ ...calculatedData, status: 'CLOSED' }),
       });
       if (!res.ok) throw new Error('Failed to close trade');
@@ -252,6 +253,27 @@ export const TradingJournal = () => {
 
     setCloseTradeDialog(null);
     setExitPriceInput("");
+  };
+
+  const [syncing, setSyncing] = useState(false);
+  const syncToGoogleSheets = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch(apiUrl('/sheets/sync'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Sync failed');
+      toast({ title: "Synced to Google Sheets", description: `${data.rowCount} trades synced` });
+      if (data.spreadsheetUrl) {
+        window.open(data.spreadsheetUrl, '_blank');
+      }
+    } catch (err: any) {
+      toast({ title: "Sync Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSyncing(false);
+    }
   };
 
   const exportToCSV = () => {
@@ -353,6 +375,10 @@ export const TradingJournal = () => {
             </Button>
             <Button variant="outline" onClick={exportToCSV} className="gap-2">
               <Download size={16} /> Export CSV
+            </Button>
+            <Button variant="outline" onClick={syncToGoogleSheets} disabled={syncing} className="gap-2">
+              {syncing ? <Loader2 size={16} className="animate-spin" /> : <Sheet size={16} />}
+              {syncing ? "Syncing..." : "Sync to Google Sheets"}
             </Button>
           </div>
         </CardContent>

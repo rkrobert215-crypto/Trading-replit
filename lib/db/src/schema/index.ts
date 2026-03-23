@@ -2,8 +2,20 @@ import { pgTable, text, numeric, timestamp, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
+export const usersTable = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  password_hash: text("password_hash"),
+  google_id: text("google_id").unique(),
+  avatar_url: text("avatar_url"),
+  created_at: timestamp("created_at").defaultNow().notNull(),
+  updated_at: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const tradesTable = pgTable("trades", {
   id: uuid("id").primaryKey().defaultRandom(),
+  user_id: uuid("user_id").references(() => usersTable.id),
   trade_date: text("trade_date").notNull(),
   symbol: text("symbol").notNull(),
   trade_type: text("trade_type").notNull(),
@@ -30,6 +42,10 @@ export const tradesTable = pgTable("trades", {
   created_at: timestamp("created_at").defaultNow().notNull(),
   updated_at: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const insertUserSchema = createInsertSchema(usersTable).omit({ id: true, created_at: true, updated_at: true });
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof usersTable.$inferSelect;
 
 export const insertTradeSchema = createInsertSchema(tradesTable).omit({ id: true, created_at: true, updated_at: true });
 export type InsertTrade = z.infer<typeof insertTradeSchema>;

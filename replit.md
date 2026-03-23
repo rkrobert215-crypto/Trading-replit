@@ -21,7 +21,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
+│   ├── api-server/         # Express API server
+│   └── risk-calculator/    # Trading Risk Calculator (React + Vite)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
@@ -56,21 +57,26 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 
 - Entry: `src/index.ts` — reads `PORT`, starts Express
 - App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+- Routes: `src/routes/index.ts` mounts sub-routers
+  - `src/routes/health.ts` — `GET /api/health`
+  - `src/routes/auth.ts` — `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/google`, `GET /api/auth/me`
+  - `src/routes/trades.ts` — `GET/POST/PATCH/DELETE /api/trades` (scoped by user when authenticated)
+  - `src/routes/sheets.ts` — `POST /api/sheets/sync` (Google Sheets sync)
+- Libs:
+  - `src/lib/jwt.ts` — JWT sign/verify, authMiddleware, optionalAuth
+  - `src/lib/telegram.ts` — Telegram Bot API notifications (new trade, close trade, update)
+  - `src/lib/googleSheets.ts` — Google Sheets sync via Replit connector (create/update "Trading Journal" spreadsheet)
+- Depends on: `@workspace/db`, `@workspace/api-zod`, googleapis, bcryptjs, jsonwebtoken
 
 ### `lib/db` (`@workspace/db`)
 
 Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
 
 - `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
+- `src/schema/index.ts` — table definitions:
+  - `usersTable` — id, email, name, password_hash, google_id, avatar_url, timestamps
+  - `tradesTable` — id, user_id (FK → users), trade fields, timestamps
 - `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
 
 Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
 
@@ -99,17 +105,31 @@ Trading Risk Calculator web app (React + Vite + Tailwind). A comprehensive India
 - **Equity Calculator** — position sizing with leverage, risk %, stop loss/target, Indian charges (STT, SEBI, GST, stamp duty)
 - **Options Calculator** — stock & index options, Black-Scholes Greeks (Delta, Gamma, Theta, Vega), lot-based sizing
 - **Futures Calculator** — margin-based sizing for NSE F&O with margin utilization gauge
-- **Trading Journal** — full CRUD (Add/Edit/Delete/Close trade) backed by `/api/trades` REST API + CSV export
+- **Trading Journal** — full CRUD (Add/Edit/Delete/Close trade) backed by `/api/trades` REST API + CSV export + Google Sheets sync
 - **Performance Dashboard** — Recharts analytics: cumulative P&L, daily P&L bar chart, weekly win rate trend, instrument pie chart
+- **Authentication** — email/password registration & login with JWT; Google OAuth ready
+- **Telegram notifications** — trade alerts sent via Telegram Bot API on create/close/update
+- **Google Sheets sync** — one-click sync of all trades to a Google Sheet via Replit connector
 - **5 color themes** — rose (default), cyan, emerald, violet, amber; applied via `data-theme` on `<html>`
 - **Help Guide** — inline glossary for all calculator fields and Indian market charges
 
 **Key files:**
-- `src/App.tsx` — wouter routing (/, /equity, /options, /futures, /journal, /dashboard)
+- `src/App.tsx` — wouter routing (/, /login, /equity, /options, /futures, /journal, /dashboard)
+- `src/contexts/AuthContext.tsx` — auth state provider
+- `src/lib/auth.ts` — login, register, Google auth, token management
+- `src/pages/AuthPage.tsx` — login/register UI
 - `src/index.css` — all 5 themes as `[data-theme]` CSS custom properties
 - `src/lib/charges.ts` — Indian market charge calculations
 - `src/lib/optionsCalculator.ts` — Black-Scholes Greeks
 - `src/components/RiskCalculator.tsx` — main shell with tab nav
+
+## Environment Variables
+
+- `DATABASE_URL` — PostgreSQL connection string (auto-provisioned by Replit)
+- `JWT_SECRET` — secret for signing JWT tokens
+- `TELEGRAM_BOT_TOKEN` — Telegram bot token for trade notifications
+- `TELEGRAM_CHAT_ID` — Telegram chat ID for notifications
+- Google Sheets — connected via Replit integration (uses `REPLIT_CONNECTORS_HOSTNAME`)
 
 ### `scripts` (`@workspace/scripts`)
 

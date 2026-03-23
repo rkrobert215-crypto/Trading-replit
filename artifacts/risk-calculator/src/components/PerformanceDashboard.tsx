@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import type { Trade } from "@/types/trade";
 import { formatCurrency } from "@/lib/formatters";
+import { getAuthHeaders } from "@/lib/auth";
 
 const BASE_URL = import.meta.env.BASE_URL?.replace(/\/$/, "") || "";
 const apiUrl = (path: string) => `${BASE_URL}/api${path}`;
@@ -38,7 +39,7 @@ const PerformanceDashboard = () => {
   const fetchTrades = async () => {
     setLoading(true);
     try {
-      const res = await fetch(apiUrl('/trades'));
+      const res = await fetch(apiUrl('/trades'), { headers: getAuthHeaders() });
       if (!res.ok) throw new Error('Failed to fetch');
       const all = (await res.json()) as Trade[];
       setTrades(all.filter(t => t.status === 'CLOSED').sort((a, b) => a.trade_date.localeCompare(b.trade_date)));

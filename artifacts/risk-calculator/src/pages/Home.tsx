@@ -1,8 +1,10 @@
 import { useLocation } from "wouter";
-import { TrendingUp, Activity, Layers, BookOpen, PieChart, BarChart3 } from "lucide-react";
+import { TrendingUp, Activity, Layers, BookOpen, PieChart, BarChart3, LogIn, LogOut, User } from "lucide-react";
 import ThemeSelector from "@/components/ThemeSelector";
 import HelpGuide from "@/components/HelpGuide";
 import SettingsPanel from "@/components/SettingsPanel";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 const cards = [
   {
@@ -54,18 +56,40 @@ const cards = [
 
 const Home = () => {
   const [, navigate] = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-10 animate-fade-in">
-        {/* Top bar */}
-        <div className="flex justify-end items-center gap-0.5">
-          <HelpGuide />
-          <ThemeSelector />
-          <SettingsPanel />
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--card)] border border-[var(--border)]">
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="" className="w-6 h-6 rounded-full" />
+                  ) : (
+                    <User className="w-4 h-4 text-[var(--primary)]" />
+                  )}
+                  <span className="text-sm text-[var(--foreground)] font-medium">{user?.name}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={logout} className="gap-1.5 text-[var(--muted-foreground)]">
+                  <LogOut className="w-4 h-4" /> Sign Out
+                </Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => navigate("/login")} className="gap-1.5">
+                <LogIn className="w-4 h-4" /> Sign In
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5">
+            <HelpGuide />
+            <ThemeSelector />
+            <SettingsPanel />
+          </div>
         </div>
 
-        {/* Hero */}
         <div className="text-center space-y-4 pb-4">
           <div className="flex items-center justify-center gap-3 mb-4">
             <div className="p-3 rounded-xl bg-primary/10 glow-primary">
@@ -84,7 +108,6 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {cards.map((card) => {
             const Icon = card.icon;
@@ -109,7 +132,6 @@ const Home = () => {
           })}
         </div>
 
-        {/* Footer */}
         <div className="text-center text-xs text-muted-foreground/40 pb-4">
           Indian market charges (STT, SEBI, GST, Stamp Duty) auto-calculated
         </div>

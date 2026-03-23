@@ -1,29 +1,35 @@
 import { Router, type IRouter } from "express";
 import { db, tradesTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, isNull } from "drizzle-orm";
+import { optionalAuth } from "../lib/jwt";
+import { notifyNewTrade, notifyTradeClosed, notifyTradeUpdated } from "../lib/telegram";
 
 const router: IRouter = Router();
 
-router.get("/trades", async (_req, res) => {
+router.get("/trades", optionalAuth, async (req, res) => {
   try {
-    const trades = await db
-      .select()
-      .from(tradesTable)
-      .orderBy(desc(tradesTable.trade_date));
-
+    const userId = (req as any).user?.userId;
+    let trades;
+    if (userId) {
+      trades = await db.select().from(tradesTable).where(eq(tradesTable.user_id, userId)).orderBy(desc(tradesTable.trade_date));
+    } else {
+      trades = await db.select().from(tradesTable).where(isNull(tradesTable.user_id)).orderBy(desc(tradesTable.trade_date));
+    }
     const parsed = trades.map(coerce);
     res.json(parsed);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    res.status(500).json({ error: "Failed to fetch trades" });
   }
 });
 
-router.post("/trades", async (req, res) => {
+router.post("/trades", optionalAuth, async (req, res) => {
   try {
     const body = req.body;
+    const userId = (req as any).user?.userId ?? null;
     const [trade] = await db
       .insert(tradesTable)
       .values({
+        user_id: userId,
         trade_date: body.trade_date,
         symbol: body.symbol,
         trade_type: body.trade_type,
@@ -50,16 +56,28 @@ router.post("/trades", async (req, res) => {
       })
       .returning();
 
-    res.status(201).json(coerce(trade));
+    const coerced = coerce(trade);
+    notifyNewTrade(coerced);
+    res.status(201).json(coerced);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    res.status(500).json({ error: "Failed to create trade" });
   }
 });
 
-router.patch("/trades/:id", async (req, res) => {
+router.patch("/trades/:id", optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body;
+    const userId = (req as any).user?.userId;
+
+    const ownershipCondition = userId
+      ? and(eq(tradesTable.id, id), eq(tradesTable.user_id, userId))
+      : and(eq(tradesTable.id, id), isNull(tradesTable.user_id));
+
+    const [existing] = await db.select().from(tradesTable).where(ownershipCondition);
+    if (!existing) {
+      return res.status(404).json({ error: "Trade not found" });
+    }
 
     const updateData: Record<string, unknown> = {};
     const numericFields = [
@@ -86,25 +104,37 @@ router.patch("/trades/:id", async (req, res) => {
     const [trade] = await db
       .update(tradesTable)
       .set({ ...updateData, updated_at: new Date() })
-      .where(eq(tradesTable.id, id))
+      .where(ownershipCondition)
       .returning();
 
     if (!trade) {
       return res.status(404).json({ error: "Trade not found" });
     }
 
-    res.json(coerce(trade));
+    const coerced = coerce(trade);
+    if (body.status === "CLOSED") {
+      notifyTradeClosed(coerced);
+    } else {
+      notifyTradeUpdated(coerced);
+    }
+    res.json(coerced);
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    res.status(500).json({ error: "Failed to update trade" });
   }
 });
 
-router.delete("/trades/:id", async (req, res) => {
+router.delete("/trades/:id", optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user?.userId;
+
+    const ownershipCondition = userId
+      ? and(eq(tradesTable.id, id), eq(tradesTable.user_id, userId))
+      : and(eq(tradesTable.id, id), isNull(tradesTable.user_id));
+
     const [deleted] = await db
       .delete(tradesTable)
-      .where(eq(tradesTable.id, id))
+      .where(ownershipCondition)
       .returning();
 
     if (!deleted) {
@@ -112,7 +142,7 @@ router.delete("/trades/:id", async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: String(err) });
+    res.status(500).json({ error: "Failed to delete trade" });
   }
 });
 
