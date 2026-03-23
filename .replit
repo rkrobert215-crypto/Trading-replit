@@ -20,6 +20,7 @@ runButton = "Project"
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
+integrations = ["google-sheet:1.0.0"]
 
 [postMerge]
 path = "scripts/post-merge.sh"
@@ -30,3 +31,6 @@ timeoutMs = 20000
 [userenv.shared]
 TELEGRAM_BOT_TOKEN = "8489930334:AAFpZpASPCcR6mEQhar72-9Nb3pYZJwOqXE"
 TELEGRAM_CHAT_ID = "5330125827"
+
+[nix]
+channel = "stable-25_05"
